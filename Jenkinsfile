@@ -1,6 +1,12 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        ansiColor('xterm')
+    }
+
     environment {
         AWS_region = "ap-southeast-2"
         AWS_credentials = credentials("aws-creds")
@@ -11,6 +17,12 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
             }
         }
     }
