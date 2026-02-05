@@ -9,8 +9,6 @@ pipeline {
     }
 
     environment {
-        AWS_region = "ap-southeast-2"
-        AWS_credentials = credentials("aws-creds")
         Github_credentials = credentials("github-creds")
     }
     stages {
@@ -46,7 +44,7 @@ pipeline {
                 failure {
                     sh '''
                     aws s3 cp reports/ \
-                    s3://solar-system-reports-${AWS_ACCOUNT_ID}/${BUILD_NUMBER}/ \
+                    s3://solar-system-tf-state/${BUILD_NUMBER}/ \
                     --recursive
                     '''
                 }
