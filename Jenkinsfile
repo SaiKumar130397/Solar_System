@@ -29,14 +29,29 @@ pipeline {
 
         stage('OWASP Dependency Scan') {
             steps {
-                sh '''
-                dependency-check.sh \
-                --project solar-system \
-                --scan . \
-                --format HTML \
-                --out reports
-                '''
+                dependencyCheck additionalArguments: '''
+                    --project solar-system
+                    --scan .
+                    --format XML
+                    --format HTML
+                    --out reports
+                    --failOnCVSS 8
+                ''',
+                odcInstallation: 'dependency-check'
+            }
+            post {
+                always {
+                    dependencyCheckPublisher pattern: 'reports/dependency-check-report.xml'
+                }
+                failure {
+                    sh '''
+                    aws s3 cp reports/ \
+                    s3://solar-system-reports-${AWS_ACCOUNT_ID}/${BUILD_NUMBER}/ \
+                    --recursive
+                    '''
+                }
             }
         }
+
     }
 }
