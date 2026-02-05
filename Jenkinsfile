@@ -5,6 +5,7 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
         ansiColor('xterm')
+        disableConcurrentBuilds(abortPrevious: true)
     }
 
     environment {
@@ -23,6 +24,18 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh 'npm install'
+            }
+        }
+
+        stage('OWASP Dependency Scan') {
+            steps {
+                sh '''
+                dependency-check.sh \
+                --project solar-system \
+                --scan . \
+                --format HTML \
+                --out reports
+                '''
             }
         }
     }
