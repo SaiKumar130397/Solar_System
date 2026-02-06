@@ -12,6 +12,7 @@ pipeline {
     }
 
     environment {
+        MONGO_URI = "mongodb+srv://supercluster.d83jj.mongodb.net/superData"
         Github_credentials = credentials("github-creds")
     }
 
@@ -61,30 +62,9 @@ pipeline {
 
         stage('Unit Testing') {
             steps {
-                script {
-                    sh '''
-                    docker run -d --name mongo-test \
-                    -e MONGO_INITDB_ROOT_USERNAME=testuser \
-                    -e MONGO_INITDB_ROOT_PASSWORD=testpass \
-                    -p 27017:27017 \
-                    mongo:7
-                    '''
-
-                    sleep 15
-
-                    withEnv([
-                        "MONGO_URI=mongodb://testuser:testpass@localhost:27017/testdb?authSource=admin",
-                        "MONGO_USERNAME=testuser",
-                        "MONGO_PASSWORD=testpass"
-                    ]) {
-                        sh 'npm test'
-                    }
-                }
-            }
-            post {
-                always {
-                    sh 'docker rm -f mongo-test'
-                }  
+                withCredentials([usernamePassword(credentialsId: 'mongo-db-creds', passwordVariable: 'MONGO_PASSWORD', usernameVariable: 'MONGO_USERNAME')]) {
+                    sh 'npm test'
+                } 
             }
         }
     }
