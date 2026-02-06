@@ -60,5 +60,18 @@ pipeline {
                 sh 'npm test'
             }
         }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        ${tool 'SonarScanner'}/bin/sonar-scanner \
+                        -Dsonar.projectKey=solar-system \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=http://localhost:9000
+                    """
+                }
+            }
+        }
     }
 }
