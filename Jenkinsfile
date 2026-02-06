@@ -79,12 +79,12 @@ pipeline {
                     ]) {
                         sh 'npm test'
                     }
-                    post {
-                        always {
-                            sh 'docker rm -f mongo-test'
-                        }
-                    }
                 }
+            }
+            post {
+                always {
+                    sh 'docker rm -f mongo-test'
+                }  
             }
         }
     }
