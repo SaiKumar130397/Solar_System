@@ -14,7 +14,7 @@ pipeline {
     environment {
         Github_credentials = credentials("github-creds")
     }
-    
+
     stages {
 
         stage('Checkout') {
@@ -52,7 +52,7 @@ pipeline {
                 failure {
                     sh '''
                     aws s3 cp reports/ \
-                    s3://solar-system-tf-state/${BUILD_NUMBER}/ \
+                    s3://solar-system-security-reports/${BUILD_NUMBER}/ \
                     --recursive
                     '''
                 }
@@ -70,10 +70,10 @@ pipeline {
                     mongo:7
                     '''
 
-                    sleep 10
+                    sleep 15
 
                     withEnv([
-                        "MONGO_URI=mongodb://localhost:27017/testdb",
+                        "MONGO_URI=mongodb://testuser:testpass@localhost:27017/testdb?authSource=admin",
                         "MONGO_USERNAME=testuser",
                         "MONGO_PASSWORD=testpass"
                     ]) {
