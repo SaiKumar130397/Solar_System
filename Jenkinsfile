@@ -2,7 +2,10 @@ pipeline {
     agent any
 
     options {
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        buildDiscarder(logRotator(
+            numToKeepStr: '10'
+            artifactNumToKeepStr: '5'
+        ))
         timestamps()
         ansiColor('xterm')
         disableConcurrentBuilds(abortPrevious: true)
@@ -27,6 +30,7 @@ pipeline {
 
         stage('OWASP Dependency Scan') {
             steps {
+                sh 'mkdir -p reports'
                 dependencyCheck additionalArguments: '''
                     --project solar-system
                     --scan .
