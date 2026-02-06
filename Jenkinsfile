@@ -31,15 +31,18 @@ pipeline {
         stage('OWASP Dependency Scan') {
             steps {
                 sh 'mkdir -p reports'
-                dependencyCheck additionalArguments: '''
-                    --project solar-system
-                    --scan .
-                    --format XML
-                    --format HTML
-                    --out reports
-                    --failOnCVSS 8
-                ''',
-                odcInstallation: 'dependency-check'
+                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck additionalArguments: """
+                        --project solar-system
+                        --scan .
+                        --format XML
+                        --format HTML
+                        --out reports
+                        --failOnCVSS 8
+                        --nvdApiKey ${NVD_API_KEY}
+                    """,
+                    odcInstallation: 'dependency-check'
+                }
             }
             post {
                 always {
@@ -52,6 +55,12 @@ pipeline {
                     --recursive
                     '''
                 }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'npm test'
             }
         }
 
