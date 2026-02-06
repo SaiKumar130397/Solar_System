@@ -13,7 +13,6 @@ pipeline {
 
     environment {
         MONGO_URI = "mongodb+srv://supercluster.d83jj.mongodb.net/superData"
-        Github_credentials = credentials("github-creds")
     }
 
     stages {
@@ -62,9 +61,7 @@ pipeline {
 
         stage('Unit Testing') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'mongo-db-creds', passwordVariable: 'MONGO_PASSWORD', usernameVariable: 'MONGO_USERNAME')]) {
-                    sh 'npm test'
-                } 
+                sh 'npm test'
             }
         }
     }
