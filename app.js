@@ -44,19 +44,32 @@ var planetModel = mongoose.model('planets', dataSchema);
 
 
 
-app.post('/planet',   function(req, res) {
-   // console.log("Received Planet ID " + req.body.id)
-    planetModel.findOne({
-        id: req.body.id
-    }, function(err, planetData) {
+app.post('/planet', function(req, res) {
+
+    if (!process.env.MONGO_URI) {
+        const mockPlanets = {
+            1: { id: 1, name: "Mercury" },
+            2: { id: 2, name: "Venus" },
+            3: { id: 3, name: "Earth" },
+            4: { id: 4, name: "Mars" },
+            5: { id: 5, name: "Jupiter" },
+            6: { id: 6, name: "Saturn" },
+            7: { id: 7, name: "Uranus" },
+            8: { id: 8, name: "Neptune" }
+        };
+
+        return res.send(mockPlanets[req.body.id]);
+    }
+
+    planetModel.findOne({ id: req.body.id }, function(err, planetData) {
         if (err) {
-            alert("Ooops, We only have 9 planets and a sun. Select a number from 0 - 9")
-            res.send("Error in Planet Data")
+            res.send("Error in Planet Data");
         } else {
             res.send(planetData);
         }
-    })
-})
+    });
+});
+
 
 app.get('/',   async (req, res) => {
     res.sendFile(path.join(__dirname, '/', 'index.html'));
@@ -95,7 +108,13 @@ app.get('/ready',   function(req, res) {
     });
 })
 
-app.listen(3000, () => { console.log("Server successfully running on port - " +3000); })
+if (require.main === module) {
+    app.listen(3000, () => {
+        console.log("Server successfully running on port - 3000");
+    });
+}
+
 module.exports = app;
+
 
 //module.exports.handler = serverless(app)
