@@ -58,11 +58,33 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        stage('Unit Testing') {
             steps {
-                sh 'npm test'
+                script {
+                    sh '''
+                    docker run -d --name mongo-test \
+                    -e MONGO_INITDB_ROOT_USERNAME=testuser \
+                    -e MONGO_INITDB_ROOT_PASSWORD=testpass \
+                    -p 27017:27017 \
+                    mongo:7
+                    '''
+
+                    sleep 10
+
+                    withEnv([
+                        "MONGO_URI=mongodb://localhost:27017/testdb",
+                        "MONGO_USERNAME=testuser",
+                        "MONGO_PASSWORD=testpass"
+                    ]) {
+                        sh 'npm test'
+                    }
+                    post {
+                        always {
+                            sh 'docker rm -f mongo-test'
+                        }
+                    }
+                }
             }
         }
-
     }
 }
