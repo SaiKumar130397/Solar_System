@@ -72,5 +72,16 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    IMAGE_TAG = "${env.BUILD_NUMBER}"
+                }
+                sh """
+                    docker build -t solar-system:${IMAGE_TAG} .
+                """
+            }
+        }
     }
 }
