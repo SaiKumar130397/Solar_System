@@ -1,9 +1,7 @@
 terraform {
-  required_version = ">= 1.5"
-
   backend "s3" {
     bucket         = "solar-system-tf-state"
-    key            = "eks/terraform.tfstate"
+    key            = "staging/terraform.tfstate"
     region         = "ap-southeast-2"
     dynamodb_table = "solar-system-tf-lock"
     encrypt        = true
