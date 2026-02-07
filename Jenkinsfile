@@ -105,15 +105,24 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 script {
+
+                    def IMAGE_TAG = "${BUILD_NUMBER}"
+                    def ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+
                     sh """
                     aws ecr get-login-password --region ${AWS_REGION} \
                     | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
-                    docker tag solar-system:${BUILD_NUMBER} \
-                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER}
+                    docker tag solar-system:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
 
-                    docker push \
-                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER}
+                    docker push ${ECR_URI}:${IMAGE_TAG}
+
+                    docker tag solar-system:${IMAGE_TAG} ${ECR_URI}:latest
+                    docker push ${ECR_URI}:latest
+
+                    docker rmi solar-system:${IMAGE_TAG} || true
+                    docker rmi ${ECR_URI}:${IMAGE_TAG} || true
+                    docker rmi ${ECR_URI}:latest || true
                     """
                 }
             }
