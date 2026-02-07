@@ -13,6 +13,9 @@ pipeline {
 
     environment {
         SNYK_TOKEN = credentials('snyk-token')
+        AWS_REGION = "ap-southeast-2"
+        AWS_ACCOUNT_ID = "424322298246"
+        ECR_REPO = "solar-system"
     }
     
     stages {
@@ -94,6 +97,23 @@ pipeline {
                     sh """
                         snyk container test solar-system:${IMAGE_TAG} \
                         --org=saikumar130397 || true  
+                    """
+                }
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                script {
+                    sh """
+                    aws ecr get-login-password --region ${AWS_REGION} \
+                    | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+                    docker tag solar-system:${BUILD_NUMBER} \
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER}
+
+                    docker push \
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER}
                     """
                 }
             }
