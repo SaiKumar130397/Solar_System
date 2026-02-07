@@ -10,6 +10,10 @@ pipeline {
         ansiColor('xterm')
         disableConcurrentBuilds(abortPrevious: true)
     }
+
+    environment {
+        SNYK_TOKEN = credentials('snyk-token')
+    }
     
     stages {
 
@@ -81,6 +85,18 @@ pipeline {
                 sh """
                     docker build -t solar-system:${IMAGE_TAG} .
                 """
+            }
+        }
+
+        stage('Snyk Container Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+                    sh """
+                        snyk container test solar-system:${IMAGE_TAG} \
+                        --severity-threshold=high \
+                        --org=saikumar130397
+                    """
+                }
             }
         }
     }
