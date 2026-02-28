@@ -81,7 +81,9 @@ var planetModel = mongoose.model('planets', dataSchema);
 
 const planetsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'planets.json'), 'utf8'));
 
-app.post('/planet', function(req, res) {
+app.post('/planet', async function(req, res) {
+    const delay = Math.floor(Math.random() * 5000);
+    await new Promise(resolve => setTimeout(resolve, delay));
 
     if (!process.env.MONGO_URI) {
         const planet = planetsData.find(p => p.id === parseInt(req.body.id));
