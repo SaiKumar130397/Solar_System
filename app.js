@@ -7,11 +7,46 @@ const mongoose = require("mongoose");
 const app = express();
 const cors = require('cors')
 const serverless = require('serverless-http')
+const client = require('prom-client')
+
+const register = new client.Registry()
+client.collectDefaultMetrics({ register })
+
+const planetRequestsCounter = new client.Counter({
+    name: 'planet_requests_total',
+    help: 'Total number of requests to the /planet endpoint',
+    labelNames: ['planet_name'],
+    registers: [register]
+})
+
+const httpRequestDuration = new client.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: [0.01, 0.05, 0.1, 0.3, 0.5, 1, 2, 5],
+    registers: [register]
+})
+
+const activeConnections = new client.Gauge({
+    name: 'active_connections',
+    help: 'Number of active connections being handled',
+    registers: [register]
+})
 
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
 app.use(cors())
+
+app.use((req, res, next) => {
+    activeConnections.inc()
+    const end = httpRequestDuration.startTimer()
+    res.on('finish', () => {
+        end({ method: req.method, route: req.path, status_code: res.statusCode })
+        activeConnections.dec()
+    })
+    next()
+})
 
 if (process.env.MONGO_URI) {
     mongoose.connect(process.env.MONGO_URI, {
@@ -58,13 +93,16 @@ app.post('/planet', function(req, res) {
             8: { id: 8, name: "Neptune" }
         };
 
-        return res.send(mockPlanets[req.body.id]);
+        const planet = mockPlanets[req.body.id]
+        if (planet) planetRequestsCounter.inc({ planet_name: planet.name })
+        return res.send(planet);
     }
 
     planetModel.findOne({ id: req.body.id }, function(err, planetData) {
         if (err) {
             res.send("Error in Planet Data");
         } else {
+            if (planetData) planetRequestsCounter.inc({ planet_name: planetData.name })
             res.send(planetData);
         }
     });
@@ -106,6 +144,11 @@ app.get('/ready',   function(req, res) {
     res.send({
         "status": "ready"
     });
+})
+
+app.get('/metrics', async (req, res) => {
+    res.setHeader('Content-Type', register.contentType)
+    res.send(await register.metrics())
 })
 
 if (require.main === module) {
