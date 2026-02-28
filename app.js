@@ -79,21 +79,12 @@ var planetModel = mongoose.model('planets', dataSchema);
 
 
 
+const planetsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'planets.json'), 'utf8'));
+
 app.post('/planet', function(req, res) {
 
     if (!process.env.MONGO_URI) {
-        const mockPlanets = {
-            1: { id: 1, name: "Mercury" },
-            2: { id: 2, name: "Venus" },
-            3: { id: 3, name: "Earth" },
-            4: { id: 4, name: "Mars" },
-            5: { id: 5, name: "Jupiter" },
-            6: { id: 6, name: "Saturn" },
-            7: { id: 7, name: "Uranus" },
-            8: { id: 8, name: "Neptune" }
-        };
-
-        const planet = mockPlanets[req.body.id]
+        const planet = planetsData.find(p => p.id === parseInt(req.body.id));
         if (planet) planetRequestsCounter.inc({ planet_name: planet.name })
         return res.send(planet);
     }

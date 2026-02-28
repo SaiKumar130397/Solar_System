@@ -1,0 +1,66 @@
+[
+    {
+        "id": 1,
+        "name": "Mercury",
+        "description": "Mercury is the smallest planet in the Solar System and the closest to the Sun. Its orbit around the Sun takes 87.97 Earth days, the shortest of all the Sun's planets. Mercury is one of four terrestrial planets in the Solar System, and is a rocky body like Earth. It has no natural satellites.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg",
+        "velocity": "47",
+        "distance": "57"
+    },
+    {
+        "id": 2,
+        "name": "Venus",
+        "description": "Venus is the second planet from the Sun. It is named after the Roman goddess of love and beauty. As the brightest natural object in Earth's night sky after the Moon, Venus can cast shadows and can be visible to the naked eye in broad daylight. Venus lies within Earth's orbit, and so never appears to venture far from the Sun.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg",
+        "velocity": "35",
+        "distance": "108"
+    },
+    {
+        "id": 3,
+        "name": "Earth",
+        "description": "Earth is the third planet from the Sun and is the largest of the terrestrial planets. The Earth is the only planet in our solar system not to be named after a Greek or Roman deity. The Earth was formed approximately 4.54 billion years ago and is the only known planet to support life. Earth has one Moon, the largest moon of any rocky planet in the Solar System.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg",
+        "velocity": "29",
+        "distance": "149"
+    },
+    {
+        "id": 4,
+        "name": "Mars",
+        "description": "Mars is the fourth planet from the Sun and the second-smallest planet in the Solar System, being larger than only Mercury. In English, Mars carries the name of the Roman god of war and is often referred to as the Red Planet. The latter refers to the effect of the iron oxide prevalent on Mars's surface, which gives it a reddish appearance.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg",
+        "velocity": "24",
+        "distance": "227"
+    },
+    {
+        "id": 5,
+        "name": "Jupiter",
+        "description": "Jupiter is the fifth planet from the Sun and the largest in the Solar System. It is a gas giant with a mass more than two and a half times that of all the other planets in the Solar System combined, and slightly less than one one-thousandth the mass of the Sun. Jupiter is the third brightest natural object in the Earth's night sky after the Moon and Venus.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg",
+        "velocity": "13",
+        "distance": "778"
+    },
+    {
+        "id": 6,
+        "name": "Saturn",
+        "description": "Saturn is the sixth planet from the Sun and the second-largest in the Solar System, after Jupiter. It is a gas giant with an average radius of about nine and a half times that of Earth. It has only one-eighth the average density of Earth; however, with its larger volume, Saturn is over 95 times more massive. Saturn is known for its ring system, which extends up to 282,000 km from the planet.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg",
+        "velocity": "9",
+        "distance": "1427"
+    },
+    {
+        "id": 7,
+        "name": "Uranus",
+        "description": "Uranus is the seventh planet from the Sun. Its name is a reference to the Greek god of the sky, Uranus, who, according to Greek mythology, was the great-grandfather of Ares, grandfather of Zeus and father of Cronus. It has the third-largest planetary radius and fourth-largest planetary mass in the Solar System. Uranus is similar in composition to Neptune, and both have bulk chemical compositions which differ from that of the larger gas giants Jupiter and Saturn.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg",
+        "velocity": "6",
+        "distance": "2871"
+    },
+    {
+        "id": 8,
+        "name": "Neptune",
+        "description": "Neptune is the eighth and farthest-known Solar planet from the Sun. In the Solar System, it is the fourth-largest planet by diameter, the third-most-massive planet, and the densest giant planet. It is 17 times the mass of Earth, and slightly more massive than its near-twin Uranus. Neptune is denser and physically smaller than Uranus because its greater mass causes more gravitational compression of its atmosphere.",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg",
+        "velocity": "5",
+        "distance": "4495"
+    }
+]
