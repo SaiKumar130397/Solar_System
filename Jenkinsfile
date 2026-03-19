@@ -40,5 +40,11 @@ pipeline {
                 unitTest()
             }
         }
+
+        stage('SonarQube scan') {
+            steps {
+                sonarScan()
+            }
+        }
     }
 }
