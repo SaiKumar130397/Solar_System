@@ -59,5 +59,11 @@ pipeline {
             }
         }
 
+        stage('Trivy image scan') {
+            steps {
+                trivyScan(IMAGE_NAME, IMAGE_TAG)
+            }
+        }
+
     }
 }
