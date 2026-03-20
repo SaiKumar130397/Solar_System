@@ -5,9 +5,4 @@ module "dev_cluster" {
   vpc_cidr   = var.vpc_cidr
 
   instance_types = var.instance_types
-
-  tags = {
-    Owner = "Sai"
-    Environment = "staging"
-  }
 }
