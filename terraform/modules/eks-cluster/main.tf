@@ -51,9 +51,4 @@ module "eks" {
       desired_size   = 2
     }
   }
-
-  tags = {
-    Environment = var.env
-    Project     = "solar-system"
-  }
 }
