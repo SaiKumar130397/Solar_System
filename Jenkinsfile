@@ -1,130 +1,107 @@
+@Library('my-shared-lib') _
+
 pipeline {
     agent any
 
-    options {
-        buildDiscarder(logRotator(
-            numToKeepStr: '10',
-            artifactNumToKeepStr: '5' 
-        ))
-        timestamps()
-        ansiColor('xterm')
-        disableConcurrentBuilds(abortPrevious: true)
+    tools {
+        nodejs 'nodejs-18'
     }
 
     environment {
-        SNYK_TOKEN = credentials('snyk-token')
-        AWS_REGION = "ap-southeast-2"
-        AWS_ACCOUNT_ID = "424322298246"
-        ECR_REPO = "solar-system"
+        AWS_REGION = 'ap-southeast-2'
+        AWS_ACCOUNT_ID = '312018064574'
+        IMAGE_NAME = 'solar-system'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        ECR_REPO = 'solar-system'
     }
-    
-    stages {
 
+
+    stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkoutCode()
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                installDependencies('npm install')
             }
         }
 
-        stage('OWASP Dependency Scan') {
+        stage('OWASP Scan') {
             steps {
-                sh 'mkdir -p reports'
-                withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-                    dependencyCheck additionalArguments: """
-                        --project solar-system
-                        --scan .
-                        --format XML
-                        --format HTML
-                        --out reports
-                        --failOnCVSS 8
-                        --nvdApiKey ${NVD_API_KEY}
-                    """,
-                    odcInstallation: 'dependency-check'
-                }
-            }
-            post {
-                always {
-                    dependencyCheckPublisher pattern: 'reports/dependency-check-report.xml'
-                }
-                failure {
-                    sh '''
-                    aws s3 cp reports/ \
-                    s3://solar-system-security-reports/${BUILD_NUMBER}/ \
-                    --recursive
-                    '''
-                }
+                owaspScan(IMAGE_NAME)
             }
         }
 
-        stage('Unit Testing') {
+        stage('Unit Test') {
             steps {
-                sh 'npm test'
+                unitTest('npm test')
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarQube scan') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        ${tool 'SonarScanner'}/bin/sonar-scanner \
-                        -Dsonar.projectKey=solar-system \
-                        -Dsonar.sources=. \
-                    """
-                }
+                sonarScan(IMAGE_NAME)
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                qualityGate()
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    IMAGE_TAG = "${env.BUILD_NUMBER}"
-                }
-                sh """
-                    docker build -t solar-system:${IMAGE_TAG} .
-                """
+                dockerBuild(IMAGE_NAME, IMAGE_TAG)
             }
         }
 
-        stage('Snyk Container Scan') {
+        stage('Trivy image scan') {
             steps {
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh """
-                        snyk container test solar-system:${IMAGE_TAG} \
-                        --org=saikumar130397 || true  
-                    """
+                trivyScan(IMAGE_NAME, IMAGE_TAG)
+            }
+        }
+
+        stage('Push Image to ECR') {
+            steps {
+                pushToECR(IMAGE_NAME, IMAGE_TAG, AWS_ACCOUNT_ID, AWS_REGION, ECR_REPO)
+            }
+        }
+
+        stage('Deploy to Dev Environment') {
+            steps {
+                deployEKS(
+                    "dev-cluster",
+                    AWS_REGION,
+                    "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}",
+                    "dev",
+                    "solar",
+                    "./helm/solar-system"
+                )
+            }
+        }
+
+        stage('Approval') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input message: "Deploy to STAGING environment?"
                 }
             }
         }
 
-        stage('Push to ECR') {
+        stage('Deploy to Staging Environment') {
             steps {
-                script {
-
-                    def IMAGE_TAG = "${BUILD_NUMBER}"
-                    def ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
-
-                    sh """
-                    aws ecr get-login-password --region ${AWS_REGION} \
-                    | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-
-                    docker tag solar-system:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
-
-                    docker push ${ECR_URI}:${IMAGE_TAG}
-
-                    docker tag solar-system:${IMAGE_TAG} ${ECR_URI}:latest
-                    docker push ${ECR_URI}:latest
-
-                    docker rmi solar-system:${IMAGE_TAG} || true
-                    docker rmi ${ECR_URI}:${IMAGE_TAG} || true
-                    docker rmi ${ECR_URI}:latest || true
-                    """
-                }
+                deployEKS(
+                    "staging-cluster",
+                    AWS_REGION,
+                    "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}",
+                    "staging",
+                    "solar",
+                    "./helm/solar-system"
+                )
             }
         }
     }
