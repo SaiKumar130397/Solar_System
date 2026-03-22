@@ -8,8 +8,6 @@ pipeline {
     }
 
     environment {
-        AWS_REGION = 'ap-southeast-2'
-        AWS_ACCOUNT_ID = '312018064574'
         IMAGE_NAME = 'solar-system'
         IMAGE_TAG = "${BUILD_NUMBER}"
         ECR_REPO = 'solar-system'
@@ -17,6 +15,12 @@ pipeline {
 
 
     stages {
+        stage('Set AWS Environment') {
+            steps {
+                awsEnv()
+            }
+        }
+
         stage('Checkout') {
             steps {
                 checkoutCode()
