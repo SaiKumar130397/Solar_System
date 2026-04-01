@@ -42,11 +42,21 @@ app.use((req, res, next) => {
     activeConnections.inc()
     const start = Date.now()
     const end = httpRequestDuration.startTimer()
+    console.debug(`request_started method=${req.method} path=${req.path}`)
     res.on('finish', () => {
         const duration = (Date.now() - start) / 1000
         end({ method: req.method, route: req.path, status_code: res.statusCode })
         activeConnections.dec()
-        console.log(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+        if (res.statusCode >= 500) {
+            console.error(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+        } else if (res.statusCode >= 400) {
+            console.warn(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+        } else {
+            console.log(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+        }
+        if (duration > 3) {
+            console.warn(`slow_request method=${req.method} path=${req.path} duration=${duration.toFixed(3)}s`)
+        }
     })
     next()
 })
@@ -86,11 +96,21 @@ const planetsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'planets.jso
 
 app.post('/planet', async function(req, res) {
     const start = Date.now()
+    console.debug(`planet_lookup_start id=${req.body.id}`)
+    if (!req.body.id) {
+        console.error(`missing_planet_id body=${JSON.stringify(req.body)}`)
+        return res.status(400).send({ error: "Missing planet id" });
+    }
+    const parsedId = parseInt(req.body.id)
+    if (isNaN(parsedId) || parsedId < 0) {
+        console.error(`invalid_planet_id id=${req.body.id} reason=${isNaN(parsedId) ? 'not_a_number' : 'negative_id'}`)
+        return res.status(400).send({ error: "Invalid planet id" });
+    }
     const delay = Math.floor(Math.random() * 5000);
     await new Promise(resolve => setTimeout(resolve, delay));
 
     if (!process.env.MONGO_URI) {
-        const planet = planetsData.find(p => p.id === parseInt(req.body.id));
+        const planet = planetsData.find(p => p.id === parsedId);
         const duration = (Date.now() - start) / 1000
         if (planet) {
             planetRequestsCounter.inc({ planet_name: planet.name })
@@ -120,21 +140,25 @@ app.post('/planet', async function(req, res) {
 
 
 app.get('/',   async (req, res) => {
+    console.debug(`serving_index client_ip=${req.ip}`)
     res.sendFile(path.join(__dirname, '/', 'index.html'));
 });
 
 app.get('/api-docs', (req, res) => {
+    console.debug("api_docs_requested")
     fs.readFile('oas.json', 'utf8', (err, data) => {
       if (err) {
         console.error(`api_docs_error error="${err.message}"`);
         res.status(500).send('Error reading file');
       } else {
+        console.debug(`api_docs_served size=${data.length}bytes`)
         res.json(JSON.parse(data));
       }
     });
   });
   
 app.get('/os',   function(req, res) {
+    console.debug(`os_info_requested hostname=${OS.hostname()}`)
     res.setHeader('Content-Type', 'application/json');
     res.send({
         "os": OS.hostname(),
@@ -164,6 +188,8 @@ app.get('/metrics', async (req, res) => {
 if (require.main === module) {
     app.listen(3000, () => {
         console.log(`solar_system starting hostname=${OS.hostname()} port=3000`);
+        console.debug(`loaded ${planetsData.length} planets from planets.json`)
+        console.debug(`environment=${process.env.NODE_ENV || 'development'} mongo_configured=${!!process.env.MONGO_URI}`)
     });
 }
 
