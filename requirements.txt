@@ -1,0 +1,2 @@
+# Used by migrate.py (PostgreSQL load from planets.json)
+psycopg[binary]>=3.1,<4
