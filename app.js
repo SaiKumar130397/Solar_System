@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs')
 const express = require('express');
 const OS = require('os');
+const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const app = express();
@@ -33,29 +34,56 @@ const activeConnections = new client.Gauge({
     registers: [register]
 })
 
+const planetDataSourceCounter = new client.Counter({
+    name: 'planet_data_source_total',
+    help: 'Total planet lookups by data source',
+    labelNames: ['source'],
+    registers: [register]
+})
+
+const planetDbLookupErrorsCounter = new client.Counter({
+    name: 'planet_db_lookup_errors_total',
+    help: 'Total failed DB lookups for planets',
+    registers: [register]
+})
+
+const planetDbLookupDuration = new client.Histogram({
+    name: 'planet_db_lookup_duration_seconds',
+    help: 'Duration of planet DB queries in seconds',
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1],
+    registers: [register]
+})
+
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
 app.use(cors())
 
 app.use((req, res, next) => {
+    const traceId = req.headers['x-trace-id'] || crypto.randomBytes(8).toString('hex')
+    req.traceId = traceId
+    res.setHeader('X-Trace-Id', traceId)
+    next()
+})
+
+app.use((req, res, next) => {
     activeConnections.inc()
     const start = Date.now()
     const end = httpRequestDuration.startTimer()
-    console.debug(`request_started method=${req.method} path=${req.path}`)
+    console.debug(`[trace_id=${req.traceId}] request_started method=${req.method} path=${req.path}`)
     res.on('finish', () => {
         const duration = (Date.now() - start) / 1000
         end({ method: req.method, route: req.path, status_code: res.statusCode })
         activeConnections.dec()
         if (res.statusCode >= 500) {
-            console.error(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+            console.error(`[trace_id=${req.traceId}] method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
         } else if (res.statusCode >= 400) {
-            console.warn(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+            console.warn(`[trace_id=${req.traceId}] method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
         } else {
-            console.log(`method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
+            console.log(`[trace_id=${req.traceId}] method=${req.method} path=${req.path} status=${res.statusCode} duration=${duration.toFixed(3)}s`)
         }
         if (duration > 3) {
-            console.warn(`slow_request method=${req.method} path=${req.path} duration=${duration.toFixed(3)}s`)
+            console.warn(`[trace_id=${req.traceId}] slow_request method=${req.method} path=${req.path} duration=${duration.toFixed(3)}s`)
         }
     })
     next()
@@ -92,73 +120,83 @@ const planetsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'planets.jso
 
 app.post('/planet', async function(req, res) {
     const start = Date.now()
-    console.debug(`planet_lookup_start id=${req.body.id}`)
+    const traceId = req.traceId
+    console.debug(`[trace_id=${traceId}] planet_lookup_start id=${req.body.id}`)
     if (!req.body.id) {
-        console.error(`missing_planet_id body=${JSON.stringify(req.body)}`)
+        console.error(`[trace_id=${traceId}] missing_planet_id body=${JSON.stringify(req.body)}`)
         return res.status(400).send({ error: "Missing planet id" });
     }
     const parsedId = parseInt(req.body.id)
     if (isNaN(parsedId) || parsedId < 0) {
-        console.error(`invalid_planet_id id=${req.body.id} reason=${isNaN(parsedId) ? 'not_a_number' : 'negative_id'}`)
+        console.error(`[trace_id=${traceId}] invalid_planet_id id=${req.body.id} reason=${isNaN(parsedId) ? 'not_a_number' : 'negative_id'}`)
         return res.status(400).send({ error: "Invalid planet id" });
     }
     const delay = Math.floor(Math.random() * 5000);
     await new Promise(resolve => setTimeout(resolve, delay));
 
-    if (!process.env.MONGO_URI) {
-        const planet = planetsData.find(p => p.id === parsedId);
-        const duration = (Date.now() - start) / 1000
-        if (planet) {
-            planetRequestsCounter.inc({ planet_name: planet.name })
-            console.log(`planet_found id=${req.body.id} name=${planet.name} duration=${duration.toFixed(3)}s`)
-        } else {
-            console.warn(`planet_not_found id=${req.body.id} duration=${duration.toFixed(3)}s`)
+    if (postgresPool) {
+        const dbStart = Date.now()
+        console.debug(`[trace_id=${traceId}] db_lookup_start id=${parsedId}`)
+        try {
+            const result = await postgresPool.query(
+                'SELECT id, name, description, image, velocity, distance FROM planets WHERE id = $1 LIMIT 1',
+                [parsedId]
+            )
+            const dbDuration = (Date.now() - dbStart) / 1000
+            planetDbLookupDuration.observe(dbDuration)
+            const planetData = result.rows[0]
+            if (planetData) {
+                planetDataSourceCounter.inc({ source: 'db' })
+                planetRequestsCounter.inc({ planet_name: planetData.name })
+                const duration = (Date.now() - start) / 1000
+                console.log(`[trace_id=${traceId}] db_lookup_hit id=${parsedId} name=${planetData.name}`)
+                console.log(`[trace_id=${traceId}] planet_found id=${parsedId} name=${planetData.name} source=db duration=${duration.toFixed(3)}s`)
+                return res.send(planetData);
+            } else {
+                console.warn(`[trace_id=${traceId}] db_lookup_miss id=${parsedId}`)
+            }
+        } catch (err) {
+            const dbDuration = (Date.now() - dbStart) / 1000
+            planetDbLookupDuration.observe(dbDuration)
+            planetDbLookupErrorsCounter.inc()
+            console.error(`[trace_id=${traceId}] db_lookup_failed id=${parsedId} error="${err.message}"`)
+            console.log(`[trace_id=${traceId}] db_fallback id=${parsedId}`)
         }
-        return res.send(planet);
     }
 
-    try {
-        const result = await postgresPool.query(
-            'SELECT id, name, description, image, velocity, distance FROM planets WHERE id = $1 LIMIT 1',
-            [parseInt(req.body.id, 10)]
-        )
-        const planetData = result.rows[0]
-        const duration = (Date.now() - start) / 1000
-        if (planetData) {
-            planetRequestsCounter.inc({ planet_name: planetData.name })
-            console.log(`planet_found id=${req.body.id} name=${planetData.name} source=postgresql duration=${duration.toFixed(3)}s`)
-        } else {
-            console.warn(`planet_not_found id=${req.body.id} source=postgresql duration=${duration.toFixed(3)}s`)
-        }
-        res.send(planetData);
-    } catch (err) {
-        const duration = (Date.now() - start) / 1000
-        console.error(`planet_query_error id=${req.body.id} error="${err.message}" duration=${duration.toFixed(3)}s`)
-        res.send("Error in Planet Data");
+    const planet = planetsData.find(p => p.id === parsedId);
+    const duration = (Date.now() - start) / 1000
+    if (planet) {
+        planetDataSourceCounter.inc({ source: 'json' })
+        planetRequestsCounter.inc({ planet_name: planet.name })
+        console.log(`[trace_id=${traceId}] planet_found id=${parsedId} name=${planet.name} source=json duration=${duration.toFixed(3)}s`)
+    } else {
+        console.warn(`[trace_id=${traceId}] planet_not_found id=${parsedId} source=json duration=${duration.toFixed(3)}s`)
     }
+    return res.send(planet);
 });
 
 
 app.get('/',   async (req, res) => {
-    console.debug(`serving_index client_ip=${req.ip}`)
+    console.debug(`[trace_id=${req.traceId}] serving_index client_ip=${req.ip}`)
     res.sendFile(path.join(__dirname, '/', 'index.html'));
 });
 
 app.get('/api-docs', (req, res) => {
-    console.debug("api_docs_requested")
+    console.debug(`[trace_id=${req.traceId}] api_docs_requested`)
     fs.readFile('oas.json', 'utf8', (err, data) => {
       if (err) {
-        console.error(`api_docs_error error="${err.message}"`);
+        console.error(`[trace_id=${req.traceId}] api_docs_error error="${err.message}"`);
         res.status(500).send('Error reading file');
       } else {
-        console.debug(`api_docs_served size=${data.length}bytes`)
+        console.debug(`[trace_id=${req.traceId}] api_docs_served size=${data.length}bytes`)
         res.json(JSON.parse(data));
       }
     });
   });
-  
+
 app.get('/os',   function(req, res) {
-    console.debug(`os_info_requested hostname=${OS.hostname()}`)
+    console.debug(`[trace_id=${req.traceId}] os_info_requested hostname=${OS.hostname()}`)
     res.setHeader('Content-Type', 'application/json');
     res.send({
         "os": OS.hostname(),
