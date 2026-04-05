@@ -98,9 +98,10 @@ if (usePostgres) {
         : {
             host: process.env.POSTGRES_HOST,
             port: Number(process.env.POSTGRES_PORT || 5432),
-            database: process.env.POSTGRES_DB || 'postgres',
+            database: process.env.POSTGRES_DB || 'solar-system',
             user: process.env.POSTGRES_USER,
-            password: process.env.POSTGRES_PASSWORD
+            password: process.env.POSTGRES_PASSWORD,
+            ssl: { rejectUnauthorized: false }
         }
 
     postgresPool = new Pool(poolConfig)
