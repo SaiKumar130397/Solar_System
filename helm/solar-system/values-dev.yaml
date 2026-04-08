@@ -1,6 +1,6 @@
 replicaCount: 2
-app: solar-dev
-
+app: solar-system
+env: dev
 image:
   repository: ""
   tag: latest
