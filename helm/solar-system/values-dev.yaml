@@ -1,5 +1,4 @@
 replicaCount: 2
-
 app: solar-dev
 
 image:
@@ -10,6 +9,9 @@ image:
 service:
   type: ClusterIP
   port: 80
+  labels:
+    tier: backend
+    env: dev
 
 resources:
   limits:
